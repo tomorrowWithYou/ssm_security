@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:security="http://www.springframework.org/schema/security"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+            http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+            http://www.springframework.org/schema/security
+            http://www.springframework.org/schema/security/spring-security-4.2.xsd">
+
+    <security:http>
+        <!--
+         pattern：需要拦截的资源。/**表示拦截所有的资源
+         access：拦截的方式。
+            isFullyAuthenticated：资源需要认证才能被访问
+            permitAll:允许所有人访问
+            isAnonymous:只有匿名用户才能访问，登录过的用户就不能访问了
+         -->
+        <security:intercept-url pattern="/goods/index" access="permitAll()"/>
+        <security:intercept-url pattern="/userLogin" access="permitAll()"/>
+        <security:intercept-url pattern="/imageCode" access="permitAll()"/>
+
+        <security:intercept-url pattern="/goods/add" access="hasRole('ROLE_ADD_GOODS')"/>
+        <security:intercept-url pattern="/goods/list" access="hasRole('ROLE_LIST_GOODS')"/>
+        <security:intercept-url pattern="/goods/delete" access="hasRole('ROLE_DELETE_GOODS')"/>
+        <security:intercept-url pattern="/goods/update" access="hasRole('ROLE_UPDATE_GOODS')"/>
+
+        <security:intercept-url pattern="/**" access="isFullyAuthenticated()"/>
+        <!-- 自定义验证码过滤器，在表单登录之前调用 -->
+        <security:custom-filter ref="imageCodeAuthenticationFilter" before="FORM_LOGIN_FILTER"/>
+        <!-- 使用http-basic方式进行认证 -->
+<!--       <security:http-basic/>-->
+        <!-- 使用form-login方式进行认证 -->
+        <security:form-login login-page="/userLogin" login-processing-url="/securityLogin"
+                             default-target-url="/goods/index"
+                            authentication-failure-url="/userLogin?error=true"
+                            authentication-success-forward-url="/goods/index"/>
+<!--                             authentication-success-handler-ref="myAuthenticationSuccessHandler"-->
+<!--                             authentication-failure-handler-ref="myAuthenticationFailureHandler"/>-->
+        <security:csrf disabled="true"/>
+
+        <!-- 加上rememberMe功能 -->
+        <!-- token-validity-seconds: 有效秒数 -->
+        <security:remember-me token-repository-ref="jdbcTokenRepository" token-validity-seconds="3600"/>
+
+        <!-- 权限不足 -->
+        <security:access-denied-handler error-page="/error"/>
+    </security:http>
+
+    <security:authentication-manager>
+        <!-- myUserDetailService自定义UserDetailsService-->
+        <security:authentication-provider user-service-ref="myUserDetailService">
+<!--            <security:user-service>-->
+<!--                <security:user name="xhc1" password="123456" authorities="ROLE_USER"/>-->
+<!--                <security:user name="xhc2" password="123456" authorities="ROLE_ADMIN"/>-->
+<!--            </security:user-service>-->
+            <security:password-encoder ref="passwordEncoder"/>
+        </security:authentication-provider>
+    </security:authentication-manager>
+
+    <bean id="myUserDetailService" class="com.xhc.security.MyUserDetailService"/>
+    <bean id="myAuthenticationSuccessHandler" class="com.xhc.security.MyAuthenticationSuccessHandler"/>
+    <bean id="myAuthenticationFailureHandler" class="com.xhc.security.MyAuthenticationFailureHandler"/>
+    <bean id="passwordEncoder" class="org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder"/>
+    <bean id="imageCodeAuthenticationFilter" class="com.xhc.security.ImageCodeAuthenticationFilter">
+        <property name="authenticationFailureHandler" ref="myAuthenticationFailureHandler"/>
+    </bean>
+    <bean id="jdbcTokenRepository" class="org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl">
+        <property name="dataSource" ref="dataSource"/>
+<!--         <property name="createTableOnStartup" value="true"/>-->
+    </bean>
+</beans>
